@@ -461,190 +461,141 @@ sequenceDiagram
 
 ## 六、逻辑架构图
 
-从业务视角展示 BioCypher + BioChatter 的分层逻辑、领域边界与协作关系。
+纯粹的模块分区与职责边界，不含数据流箭头。展示"系统由哪些部分组成、各部分归属哪个域"。
 
 ```mermaid
-graph TB
-    subgraph L1["应用层 (Application Layer)"]
-        direction LR
-        APP_WEB["Web 应用<br/>(Streamlit / Flask)"]
-        APP_NOTEBOOK["Jupyter Notebook<br/>交互式分析"]
-        APP_PIPELINE["自动化 Pipeline<br/>批量建图脚本"]
+block-beta
+    columns 1
+
+    block:AppLayer["应用层"]
+        columns 3
+        APP_WEB["Web 应用\n(Streamlit / Flask)"]
+        APP_NOTEBOOK["Jupyter Notebook\n交互式分析"]
+        APP_PIPELINE["自动化 Pipeline\n批量建图脚本"]
     end
 
-    subgraph L2["对话与检索层 (Conversation & Retrieval Layer) — BioChatter"]
-        direction TB
+    block:BioChatter["BioChatter — 对话与检索层"]
+        columns 3
 
-        subgraph L2_Conv["对话管理"]
-            CONV["Conversation<br/>━ 会话生命周期管理 ━<br/>消息历史 · Token 计数<br/>多轮对话 · 纠错机制"]
-            LLM_PLUG["LLM 适配插件<br/>OpenAI │ Claude │ Gemini<br/>Ollama │ Azure │ LiteLLM"]
+        block:ConvMgmt["对话管理"]:1
+            columns 1
+            CONV["Conversation\n会话生命周期\n消息历史 · 多轮对话 · 纠错"]
+            block:LLMAdapters["LLM 适配"]
+                columns 3
+                LLM_OAI["OpenAI"]
+                LLM_CLD["Claude"]
+                LLM_GEM["Gemini"]
+                LLM_OLL["Ollama"]
+                LLM_AZR["Azure"]
+                LLM_LIT["LiteLLM"]
+            end
         end
 
-        subgraph L2_RAG["RAG 编排"]
-            direction TB
-            RAG_CTRL["RAG 控制器<br/>_inject_context()<br/>统一上下文注入"]
-            RAG_SEL["Agent 路由<br/>RagAgentSelector<br/>LLM 智能选择"]
-            RAG_UNI["RagAgent 统一接口<br/>generate_responses()"]
+        block:RAGOrch["RAG 编排"]:1
+            columns 1
+            RAG_CTRL["RAG 控制器\n_inject_context()"]
+            RAG_SEL["Agent 路由\nRagAgentSelector"]
+            RAG_UNI["RagAgent\n统一接口"]
         end
 
-        subgraph L2_Retrieve["检索引擎"]
-            direction LR
-            R_KG["知识图谱检索<br/>DatabaseAgent<br/>┌─────────────────┐<br/>│ PromptEngine    │<br/>│ (Schema感知4步) │<br/>│ → Cypher 生成   │<br/>└─────────────────┘<br/>┌─────────────────┐<br/>│ ReflexionAgent  │<br/>│ (迭代优化,可选) │<br/>└─────────────────┘"]
-            R_VEC["向量检索<br/>VectorDatabaseAgent<br/>语义相似度搜索<br/>文档嵌入 + 元数据"]
-            R_API["外部 API 检索<br/>APIAgent<br/>BLAST 序列比对<br/>OncoKB 癌症变异"]
-        end
-    end
-
-    subgraph L3["知识图谱构建层 (KG Construction Layer) — BioCypher"]
-        direction TB
-
-        subgraph L3_Ontology["本体管理域"]
-            direction TB
-            O_LOAD["本体加载<br/>OntologyAdapter<br/>OWL/RDF/TTL → DiGraph<br/>━━━━━━━━━━━━━━━<br/>· RDFLib 解析<br/>· 继承链提取<br/>· 标签标准化<br/>· 祖先可达性剪枝"]
-            O_HYBRID["本体混合<br/>Ontology<br/>━━━━━━━━━━━━━━━<br/>· Head (Biolink) 主骨架<br/>· Tail (Mondo/GO) 扩展<br/>· 子树嫁接 _join<br/>· Schema 扩展 _extend"]
-            O_MAP["Schema 映射<br/>OntologyMapping<br/>━━━━━━━━━━━━━━━<br/>· schema_config.yaml<br/>· extended_schema 构建<br/>· 纵向/横向/属性继承<br/>· 白名单 & 黑名单"]
-        end
-
-        subgraph L3_ETL["ETL 管线域"]
-            direction TB
-            ETL_TRANS["数据翻译<br/>Translator<br/>━━━━━━━━━━━━━━━<br/>· input_label → 本体类<br/>· 属性过滤 (白/黑名单)<br/>· 缺失属性补 None<br/>· 未映射类型静默丢弃"]
-            ETL_MODEL["数据模型<br/>BioCypherNode<br/>BioCypherEdge<br/>BioCypherRelAsNode"]
-            ETL_DEDUP["去重<br/>Deduplicator<br/>全局单例 · 按类型追踪"]
-        end
-
-        subgraph L3_Orchestrate["编排域"]
-            CORE["BioCypher 编排器<br/>━ 懒初始化 ━<br/>按需创建子模块<br/>统一对外 API"]
+        block:RetrievalEngines["检索引擎"]:1
+            columns 1
+            R_KG["知识图谱检索\nDatabaseAgent\n· PromptEngine (Schema感知)\n· ReflexionAgent (迭代优化)"]
+            R_VEC["向量检索\nVectorDatabaseAgent\n语义相似度 · 文档嵌入"]
+            R_API["外部 API 检索\nAPIAgent\nBLAST · OncoKB"]
         end
     end
 
-    subgraph L4["存储层 (Storage Layer)"]
-        direction LR
+    block:BioCypher["BioCypher — 知识图谱构建层"]
+        columns 3
 
-        subgraph L4_Graph["图数据库"]
-            NEO4J[("Neo4j")]
-            ARANGO[("ArangoDB")]
+        block:OntologyDomain["本体管理域"]:1
+            columns 1
+            O_LOAD["本体加载\nOntologyAdapter\nOWL/RDF/TTL 解析\n继承链提取 · 标签标准化\n祖先剪枝"]
+            O_HYBRID["本体混合\nOntology\nHead 主骨架 (Biolink)\nTail 扩展 (Mondo/GO)\n子树嫁接 · Schema扩展"]
+            O_MAP["Schema 映射\nOntologyMapping\nschema_config.yaml 解析\nextended_schema 构建\n纵向/横向/属性继承"]
         end
 
-        subgraph L4_Relational["关系型数据库"]
-            PG[("PostgreSQL")]
-            SQLITE[("SQLite")]
+        block:ETLDomain["ETL 管线域"]:1
+            columns 1
+            ETL_TRANS["数据翻译 Translator\ninput_label 映射\n属性过滤 · 类型校验"]
+            ETL_MODEL["数据模型\nBioCypherNode\nBioCypherEdge\nBioCypherRelAsNode"]
+            ETL_DEDUP["去重 Deduplicator\n全局单例 · 按类型追踪"]
         end
 
-        subgraph L4_Semantic["语义存储"]
-            RDF_STORE[("RDF/Turtle")]
-            OWL_STORE[("OWL")]
-        end
-
-        subgraph L4_Vector["向量数据库"]
-            MILVUS[("Milvus")]
-        end
-
-        subgraph L4_Memory["内存"]
-            NETWORKX["NetworkX"]
-            PANDAS["Pandas"]
-        end
-
-        subgraph L4_File["文件"]
-            CSV["CSV 文件"]
+        block:OrchDomain["编排域"]:1
+            columns 1
+            CORE["BioCypher 编排器\n懒初始化子模块\n统一对外 API\nwrite_nodes()\nwrite_edges()\nwrite_import_call()"]
+            block:Writers["输出适配器"]
+                columns 2
+                W_NEO["Neo4j\nWriter"]
+                W_PG["PostgreSQL\nWriter"]
+                W_RDF["RDF/OWL\nWriter"]
+                W_CSV["CSV/SQLite\nWriter"]
+                W_NX["NetworkX\n内存"]
+                W_PD["Pandas\n内存"]
+            end
         end
     end
 
-    subgraph L5["外部知识源 (External Knowledge Sources)"]
-        direction LR
-        BIO_DB["生物数据库<br/>UniProt · STRING<br/>Reactome · DrugBank<br/>DisGeNET · OMIM"]
-        ONTO_LIB["本体库<br/>Biolink Model<br/>Mondo · Gene Ontology<br/>Sequence Ontology"]
-        LLM_SVC["LLM 服务<br/>GPT-4 · Claude<br/>Gemini · Ollama"]
+    block:StorageLayer["存储层"]
+        columns 6
+        NEO4J[("Neo4j")]
+        PG[("PostgreSQL")]
+        SQLITE[("SQLite")]
+        MILVUS[("Milvus")]
+        RDF_S[("RDF/OWL")]
+        FS[("CSV 文件")]
     end
 
-    %% === 层间连接 ===
+    block:ExtLayer["外部知识源"]
+        columns 3
+        BIO_DB["生物数据库\nUniProt · STRING\nReactome · DrugBank"]
+        ONTO_LIB["本体库\nBiolink Model\nMondo · GO · SO"]
+        LLM_SVC["LLM 服务\nGPT-4 · Claude\nGemini · Ollama"]
+    end
 
-    %% 应用层 → 对话层
-    APP_WEB --> CONV
-    APP_NOTEBOOK --> CONV
-    APP_NOTEBOOK --> CORE
-    APP_PIPELINE --> CORE
-
-    %% 对话层内部
-    CONV --> LLM_PLUG
-    CONV --> RAG_CTRL
-    RAG_CTRL --> RAG_SEL
-    RAG_CTRL --> RAG_UNI
-    RAG_SEL --> RAG_UNI
-    RAG_UNI --> R_KG
-    RAG_UNI --> R_VEC
-    RAG_UNI --> R_API
-
-    %% 检索 → 存储
-    R_KG -->|"Cypher"| NEO4J
-    R_VEC -->|"向量搜索"| MILVUS
-    R_API -->|"REST API"| BIO_DB
-
-    %% 检索 → LLM
-    R_KG -.->|"4步提示 + 反思"| LLM_SVC
-    RAG_SEL -.->|"路由决策"| LLM_SVC
-    CONV -.->|"最终回答"| LLM_SVC
-
-    %% ★ 桥接: BioCypher schema → BioChatter PromptEngine
-    O_MAP ==>|"schema_info<br/>(实体·关系·属性定义)"| R_KG
-
-    %% 建图层内部
-    CORE --> O_MAP
-    CORE --> O_HYBRID
-    CORE --> ETL_TRANS
-    O_HYBRID --> O_LOAD
-    O_MAP --> O_HYBRID
-    ETL_TRANS -->|"查本体映射"| O_MAP
-    ETL_TRANS --> ETL_MODEL --> ETL_DEDUP
-
-    %% 建图层 → 存储
-    ETL_DEDUP -->|"离线批量"| NEO4J
-    ETL_DEDUP -->|"离线批量"| PG
-    ETL_DEDUP -->|"离线批量"| SQLITE
-    ETL_DEDUP -->|"离线批量"| RDF_STORE
-    ETL_DEDUP -->|"离线批量"| OWL_STORE
-    ETL_DEDUP -->|"离线批量"| CSV
-    ETL_DEDUP -->|"在线"| NETWORKX
-    ETL_DEDUP -->|"在线"| PANDAS
-
-    %% 外部知识源
-    BIO_DB -->|"用户 Adapter<br/>解析导入"| CORE
-    ONTO_LIB -->|"OWL/RDF 文件"| O_LOAD
-
-    %% === 样式 ===
-    classDef appLayer fill:#e3f2fd,stroke:#1565c0,stroke-width:1px
-    classDef convLayer fill:#fff8e1,stroke:#f9a825,stroke-width:1px
-    classDef ragLayer fill:#fff3e0,stroke:#e65100,stroke-width:1px
-    classDef retrieveLayer fill:#fce4ec,stroke:#c62828,stroke-width:1px
-    classDef ontoLayer fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px
-    classDef etlLayer fill:#e8f5e9,stroke:#2e7d32,stroke-width:1px
-    classDef coreLayer fill:#ffeb3b,stroke:#f57f17,stroke-width:2px
-    classDef storageLayer fill:#eceff1,stroke:#37474f,stroke-width:1px
-    classDef externalLayer fill:#fafafa,stroke:#9e9e9e,stroke-width:1px,stroke-dasharray: 5 5
-
-    class APP_WEB,APP_NOTEBOOK,APP_PIPELINE appLayer
-    class CONV,LLM_PLUG convLayer
-    class RAG_CTRL,RAG_SEL,RAG_UNI ragLayer
-    class R_KG,R_VEC,R_API retrieveLayer
-    class O_LOAD,O_HYBRID,O_MAP ontoLayer
-    class ETL_TRANS,ETL_MODEL,ETL_DEDUP etlLayer
-    class CORE coreLayer
-    class NEO4J,ARANGO,PG,SQLITE,RDF_STORE,OWL_STORE,MILVUS,NETWORKX,PANDAS,CSV storageLayer
-    class BIO_DB,ONTO_LIB,LLM_SVC externalLayer
+    style AppLayer fill:#e3f2fd,stroke:#1565c0
+    style BioChatter fill:#fff8e1,stroke:#f9a825
+    style BioCypher fill:#e8f5e9,stroke:#2e7d32
+    style StorageLayer fill:#eceff1,stroke:#546e7a
+    style ExtLayer fill:#fafafa,stroke:#9e9e9e,stroke-dasharray: 5 5
+    style OntologyDomain fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px
+    style ETLDomain fill:#e8f5e9,stroke:#2e7d32
+    style OrchDomain fill:#fffde7,stroke:#f57f17
+    style ConvMgmt fill:#fff8e1,stroke:#ffa000
+    style RAGOrch fill:#fff3e0,stroke:#e65100
+    style RetrievalEngines fill:#fce4ec,stroke:#c62828
 ```
 
 ### 逻辑分层说明
 
-| 层次 | 职责 | 所属仓库 |
+| 层次 | 归属 | 职责边界 |
 |------|------|---------|
-| **应用层** | Web UI、Notebook 交互、批处理脚本；面向终端用户 | 用户项目 |
-| **对话与检索层** | 会话管理、多 LLM 适配、RAG 编排、多后端检索（KG/向量/API） | BioChatter |
-| **知识图谱构建层** | 本体加载与混合、Schema 映射、数据翻译与入库 | BioCypher |
-| **存储层** | 图数据库、关系型数据库、语义存储、向量库、内存/文件 | 第三方 |
-| **外部知识源** | 生物数据库、本体库、LLM 服务 | 第三方 |
+| **应用层** | 用户项目 | 面向终端用户的交互入口 |
+| **对话与检索层** | BioChatter | 会话管理、LLM 多厂商适配、RAG 编排、多后端检索 |
+| **知识图谱构建层** | BioCypher | 本体加载混合、Schema 映射、数据翻译入库、多后端输出 |
+| **存储层** | 第三方 | 图数据库、关系型数据库、向量库、语义存储、文件 |
+| **外部知识源** | 第三方 | 生物数据库、标准本体、LLM 服务 |
 
-### 核心协作关系
+### 域边界与职责划分
 
-- **本体是贯穿两层的纽带**：BioCypher 中 `OntologyMapping` 生成的 `schema_info`（实体、关系、属性定义）既驱动建图时的数据翻译，也传递给 BioChatter 的 `BioCypherPromptEngine` 约束查询生成，确保入库 schema 与查询 schema 严格一致
-- **BioCypher 负责 Write Path**（数据 → 本体映射 → 标准化 → 存储）
-- **BioChatter 负责 Read Path**（问题 → Schema 感知的查询生成 → 检索 → LLM 回答）
-- **两者通过 `schema_config.yaml` / `schema_info` 桥接**，形成"写-读"闭环
+**BioCypher 三个域：**
+
+| 域 | 模块 | 职责 |
+|----|------|------|
+| **本体管理域** (紫色) | OntologyAdapter、Ontology、OntologyMapping | 本体解析、混合、Schema 到本体的映射关系维护 |
+| **ETL 管线域** (绿色) | Translator、DataModel、Deduplicator | 数据翻译、标准化表示、去重 |
+| **编排域** (黄色) | BioCypher 主类、输出适配器 | 子模块生命周期管理、多存储后端适配 |
+
+**BioChatter 三个域：**
+
+| 域 | 模块 | 职责 |
+|----|------|------|
+| **对话管理** (橙色) | Conversation、LLM 适配器 | 会话状态、消息历史、多 LLM 厂商接入 |
+| **RAG 编排** (深橙) | RAG 控制器、AgentSelector、RagAgent | 上下文注入策略、Agent 路由、统一接口封装 |
+| **检索引擎** (红色) | DatabaseAgent、VectorAgent、APIAgent | KG 查询生成、向量搜索、外部 API 调用 |
+
+### 跨层共享契约
+
+本体管理域产出的 **`schema_info`** 是两个系统间的共享契约——BioCypher 的 ETL 域依赖它做数据翻译，BioChatter 的检索引擎域依赖它约束查询生成。这份契约确保"怎么写进去的"和"怎么查出来的"在 schema 层面严格一致。
